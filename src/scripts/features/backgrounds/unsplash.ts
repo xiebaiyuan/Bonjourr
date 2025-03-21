@@ -355,6 +355,7 @@ async function getCache(): Promise<Unsplash.Local> {
 function loadBackground(props: Unsplash.Image) {
 	imgBackground(props.url, props.color)
 	imgCredits(props)
+	initBackgroundClickToDownload(props); // Add this line
 }
 
 async function preloadImage(src: string) {
@@ -405,4 +406,67 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
 	} finally {
 		domsave.classList.remove('loading')
 	}
+}
+
+function initBackgroundClickToDownload(image: Unsplash.Image) {
+	// Target specific UI elements you want to use as download triggers
+	const triggerElements = [
+		document.getElementById('clock'),
+		document.getElementById('weather')
+	];
+
+	triggerElements.forEach(element => {
+		if (!element) return;
+
+		// Add click event listener to these elements
+		element.addEventListener('click', async (e) => {
+			if (!image.download_link) return;
+
+			// Show loading indicator
+			const loadingIndicator = document.createElement('div');
+			loadingIndicator.style.position = 'fixed';
+			loadingIndicator.style.top = '20px';
+			loadingIndicator.style.right = '20px';
+			loadingIndicator.style.padding = '10px 15px';
+			loadingIndicator.style.background = 'rgba(0,0,0,0.7)';
+			loadingIndicator.style.color = 'white';
+			loadingIndicator.style.borderRadius = '4px';
+			loadingIndicator.style.zIndex = '9999';
+			loadingIndicator.textContent = 'Downloading wallpaper...';
+			document.body.appendChild(loadingIndicator);
+
+			try {
+				// Reuse existing save image logic
+				const downloadUrl = new URL(image.download_link);
+				const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
+				const downloadResponse = await apiFetch(apiDownloadUrl);
+
+				if (!downloadResponse) return;
+
+				const data: { url: string } = await downloadResponse.json();
+				const imageResponse = await fetch(data.url);
+
+				if (!imageResponse.ok) return;
+
+				const blob = await imageResponse.blob();
+				const downloadLink = document.createElement('a');
+				downloadLink.href = URL.createObjectURL(blob);
+				downloadLink.download = downloadUrl.pathname.split('/')[2];
+				document.body.appendChild(downloadLink);
+				downloadLink.click();
+				document.body.removeChild(downloadLink);
+
+				loadingIndicator.textContent = 'Download started!';
+			} catch (error) {
+				console.error('Failed to download image:', error);
+				loadingIndicator.textContent = 'Download failed';
+			} finally {
+				setTimeout(() => {
+					if (document.body.contains(loadingIndicator)) {
+						document.body.removeChild(loadingIndicator);
+					}
+				}, 2000);
+			}
+		});
+	});
 }
