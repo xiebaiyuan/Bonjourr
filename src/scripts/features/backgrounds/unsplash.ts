@@ -382,91 +382,98 @@ function appendSaveLink(domcredit: HTMLElement, image: Unsplash.Image) {
 	domcredit.appendChild(domsave)
 }
 
-async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
-	domsave.classList.add('loading')
-	try {
-		const downloadUrl = new URL(image.download_link)
-		const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search
-		const downloadResponse = await apiFetch(apiDownloadUrl)
+function initBackgroundClickToDownload(image: Unsplash.Image) {
+  // Target specific UI elements you want to use as download triggers
+  const triggerElements = [
+    document.getElementById('clock'),
+    document.getElementById('weather')
+  ];
 
-		if (!downloadResponse) return
+  triggerElements.forEach(element => {
+    if (!element) return;
 
-		const data: { url: string } = await downloadResponse.json()
-		const imageResponse = await fetch(data.url)
+    // Add click event listener to these elements
+    element.addEventListener('click', async (e) => {
+      if (!image.download_link) return;
 
-		if (!imageResponse.ok) return
+      // Show loading indicator
+      const loadingIndicator = document.createElement('div');
+      loadingIndicator.style.position = 'fixed';
+      loadingIndicator.style.top = '20px';
+      loadingIndicator.style.right = '20px';
+      loadingIndicator.style.padding = '10px 15px';
+      loadingIndicator.style.background = 'rgba(0,0,0,0.7)';
+      loadingIndicator.style.color = 'white';
+      loadingIndicator.style.borderRadius = '4px';
+      loadingIndicator.style.zIndex = '9999';
+      loadingIndicator.textContent = 'Downloading wallpaper...';
+      document.body.appendChild(loadingIndicator);
 
-		const blob = await imageResponse.blob()
+      try {
+        // Use the same approach as saveImage to preserve EXIF data
+        const downloadUrl = new URL(image.download_link);
+        const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
 
-		domsave.onclick = null
-		domsave.href = URL.createObjectURL(blob)
-		domsave.download = downloadUrl.pathname.split('/')[2]
+        // Add a parameter to request original image with EXIF preserved
+        const downloadResponse = await apiFetch(`${apiDownloadUrl}&preserve_exif=true`);
 
-		domsave.click()
-	} finally {
-		domsave.classList.remove('loading')
-	}
+        if (!downloadResponse) return;
+
+        const data: { url: string } = await downloadResponse.json();
+        const imageResponse = await fetch(data.url);
+
+        if (!imageResponse.ok) return;
+
+        const blob = await imageResponse.blob();
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        loadingIndicator.textContent = 'Download started HAHA!';
+      } catch (error) {
+        console.error('Failed to download image:', error);
+        loadingIndicator.textContent = 'Download failed';
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(loadingIndicator)) {
+            document.body.removeChild(loadingIndicator);
+          }
+        }, 2000);
+      }
+    });
+  });
 }
 
-function initBackgroundClickToDownload(image: Unsplash.Image) {
-	// Target specific UI elements you want to use as download triggers
-	const triggerElements = [
-		document.getElementById('clock'),
-		document.getElementById('weather')
-	];
+async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
+  domsave.classList.add('loading');
 
-	triggerElements.forEach(element => {
-		if (!element) return;
+  try {
+    const downloadUrl = new URL(image.download_link);
+    const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
 
-		// Add click event listener to these elements
-		element.addEventListener('click', async (e) => {
-			if (!image.download_link) return;
+    // Add a parameter to request original image with EXIF preserved
+    const downloadResponse = await apiFetch(`${apiDownloadUrl}&preserve_exif=true`);
 
-			// Show loading indicator
-			const loadingIndicator = document.createElement('div');
-			loadingIndicator.style.position = 'fixed';
-			loadingIndicator.style.top = '20px';
-			loadingIndicator.style.right = '20px';
-			loadingIndicator.style.padding = '10px 15px';
-			loadingIndicator.style.background = 'rgba(0,0,0,0.7)';
-			loadingIndicator.style.color = 'white';
-			loadingIndicator.style.borderRadius = '4px';
-			loadingIndicator.style.zIndex = '9999';
-			loadingIndicator.textContent = 'Downloading wallpaper...';
-			document.body.appendChild(loadingIndicator);
+    if (!downloadResponse) return;
 
-			try {
-				// Reuse existing save image logic
-				const downloadUrl = new URL(image.download_link);
-				const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
-				const downloadResponse = await apiFetch(apiDownloadUrl);
+    const data: { url: string } = await downloadResponse.json();
 
-				if (!downloadResponse) return;
+    // Request the full-quality original image
+    const imageResponse = await fetch(data.url);
 
-				const data: { url: string } = await downloadResponse.json();
-				const imageResponse = await fetch(data.url);
+    if (!imageResponse.ok) return;
 
-				if (!imageResponse.ok) return;
+    const blob = await imageResponse.blob();
 
-				const blob = await imageResponse.blob();
-				const downloadLink = document.createElement('a');
-				downloadLink.href = URL.createObjectURL(blob);
-				downloadLink.download = downloadUrl.pathname.split('/')[2];
-				document.body.appendChild(downloadLink);
-				downloadLink.click();
-				document.body.removeChild(downloadLink);
+    domsave.onclick = null;
+    domsave.href = URL.createObjectURL(blob);
+    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
 
-				loadingIndicator.textContent = 'Download started!';
-			} catch (error) {
-				console.error('Failed to download image:', error);
-				loadingIndicator.textContent = 'Download failed';
-			} finally {
-				setTimeout(() => {
-					if (document.body.contains(loadingIndicator)) {
-						document.body.removeChild(loadingIndicator);
-					}
-				}, 2000);
-			}
-		});
-	});
+    domsave.click();
+  } finally {
+    domsave.classList.remove('loading');
+  }
 }
