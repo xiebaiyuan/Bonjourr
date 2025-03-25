@@ -398,7 +398,7 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
     // Then modify the URL with optimal parameters
     const photoUrl = new URL(data.url);
     photoUrl.searchParams.set('q', '100');
-    photoUrl.searchParams.set('fm', 'png');
+    photoUrl.searchParams.set('fm', 'jpg');
     photoUrl.searchParams.set('raw', 'true');
     photoUrl.searchParams.set('fit', 'max');
     photoUrl.searchParams.set('metadata', 'true');
@@ -411,7 +411,7 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
 
     domsave.onclick = null;
     domsave.href = URL.createObjectURL(blob);
-    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.png`;
+    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
 
     domsave.click();
   } finally {
@@ -455,7 +455,7 @@ function initBackgroundClickToDownload(image: Unsplash.Image) {
 
         const photoUrl = new URL(data.url);
         photoUrl.searchParams.set('q', '100');
-        photoUrl.searchParams.set('fm', 'png');
+        photoUrl.searchParams.set('fm', 'jpg');
         photoUrl.searchParams.set('raw', 'true');
         photoUrl.searchParams.set('fit', 'max');
         photoUrl.searchParams.set('metadata', 'true');
@@ -467,7 +467,7 @@ function initBackgroundClickToDownload(image: Unsplash.Image) {
         const blob = await imageResponse.blob();
         const downloadLink = document.createElement('a');
         downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.png`;
+        downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
