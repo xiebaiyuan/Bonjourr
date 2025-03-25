@@ -388,14 +388,12 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
     const downloadUrl = new URL(image.download_link);
     const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
 
-    // First get the download link without extra parameters
+	// Extract image ID properly - this will get the actual photo ID
+	const imageId = downloadUrl.pathname.split('/')[2];
     const downloadResponse = await apiFetch(apiDownloadUrl);
-
     if (!downloadResponse) return;
-
     const data: { url: string } = await downloadResponse.json();
 
-    // Then modify the URL with optimal parameters
     const photoUrl = new URL(data.url);
     photoUrl.searchParams.set('q', '100');
     photoUrl.searchParams.set('fm', 'jpg');
@@ -404,14 +402,13 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
     photoUrl.searchParams.set('metadata', 'true');
 
     const imageResponse = await fetch(photoUrl.toString());
-
     if (!imageResponse.ok) return;
-
     const blob = await imageResponse.blob();
 
     domsave.onclick = null;
     domsave.href = URL.createObjectURL(blob);
-    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
+    // Add imageId to filename to avoid duplicates
+    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-${imageId}-unsplash.jpg`;
 
     domsave.click();
   } finally {
@@ -445,7 +442,9 @@ function initBackgroundClickToDownload(image: Unsplash.Image) {
 
       try {
         const downloadUrl = new URL(image.download_link);
-        const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
+        // Extract image ID properly - this will get the actual photo ID
+        const imageId = downloadUrl.pathname.split('/')[2];
+		const apiDownloadUrl = '/unsplash' + downloadUrl.pathname + downloadUrl.search;
 
         const downloadResponse = await apiFetch(apiDownloadUrl);
 
@@ -467,8 +466,7 @@ function initBackgroundClickToDownload(image: Unsplash.Image) {
         const blob = await imageResponse.blob();
         const downloadLink = document.createElement('a');
         downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-unsplash.jpg`;
-        document.body.appendChild(downloadLink);
+		downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-${imageId}-unsplash.jpg`;        document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
 
