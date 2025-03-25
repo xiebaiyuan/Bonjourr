@@ -408,7 +408,7 @@ async function saveImage(domsave: HTMLAnchorElement, image: Unsplash.Image) {
     domsave.onclick = null;
     domsave.href = URL.createObjectURL(blob);
     // Add imageId to filename to avoid duplicates
-    domsave.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-${imageId}-unsplash.jpg`;
+	downloadLink.download = `${image.name.replace(/\s+/g, '-')}-${imageId}-by-${image.username}-unsplash.jpg`;        document.body.appendChild(downloadLink);
 
     domsave.click();
   } finally {
@@ -466,7 +466,7 @@ function initBackgroundClickToDownload(image: Unsplash.Image) {
         const blob = await imageResponse.blob();
         const downloadLink = document.createElement('a');
         downloadLink.href = URL.createObjectURL(blob);
-		downloadLink.download = `${image.name.replace(/\s+/g, '-')}-by-${image.username}-${imageId}-unsplash.jpg`;        document.body.appendChild(downloadLink);
+		downloadLink.download = `${image.name.replace(/\s+/g, '-')}-${imageId}-by-${image.username}-unsplash.jpg`;        document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
 
