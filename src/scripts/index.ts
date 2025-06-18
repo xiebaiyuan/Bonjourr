@@ -185,14 +185,22 @@ function onlineAndMobile() {
 			return
 		}
 
-		const time = (backgroundLastChange ? new Date(backgroundLastChange) : new Date()).getTime()
-		const needNew = needsChange(sync.backgrounds.frequency, time)
-		const notColor = sync.backgrounds.type !== 'color'
-
+		// 更新时钟和天气
 		clock(sync)
 		weather({ sync, lastWeather })
+		
+		// 判断是否需要更新背景
+		const time = (backgroundLastChange ? new Date(backgroundLastChange) : new Date()).getTime()
+		const isTabsFrequency = sync.backgrounds.frequency === 'tabs'
+		const needNew = isTabsFrequency || needsChange(sync.backgrounds.frequency, time)
+		const notColor = sync.backgrounds.type !== 'color'
 
+		// 如果不是纯色背景，且需要更新（基于频率判断），则刷新背景
 		if (notColor && needNew) {
+			// 如果是切换标签页模式，强制更新背景最后修改时间
+			if (isTabsFrequency) {
+				local.backgroundLastChange = new Date(0).toString(); // 强制触发更新
+			}
 			backgroundsInit(sync, local)
 		}
 	}

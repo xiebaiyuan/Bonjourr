@@ -349,6 +349,8 @@ async function backgroundCacheControl(backgrounds: Backgrounds, local: Local, ne
 	// 2. Control change for specified list
 
 	const lastTime = new Date(local.backgroundLastChange ?? '01/01/1971').getTime()
+	const isTabsFrequency = backgrounds.frequency === 'tabs'
+	const needNew = isTabsFrequency || needsChange(backgrounds.frequency, lastTime)
 	const isPaused = backgrounds.frequency === 'pause'
 	const isPreloading = localStorage.backgroundPreloading === 'true'
 
