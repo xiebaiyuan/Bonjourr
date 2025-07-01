@@ -150,7 +150,7 @@ export function initCreditEvents() {
 	})
 
 	onclickdown(document.getElementById('b_interface-background-download'), () => {
-		downloadImage()
+		downloadCurrentBackground()
 	})
 
 	// 初始化点击时钟或天气下载壁纸的功能
@@ -309,6 +309,86 @@ async function toggleBackgroundPause() {
 	} else {
 		localStorage.lastBackgroundFreq = sync.backgrounds.frequency
 		backgroundUpdate({ freq: 'pause' })
+	}
+}
+
+// 通用的下载当前背景图片函数
+async function downloadCurrentBackground() {
+	// 检查当前是否有背景图片可下载
+	if (!currentBackground || currentBackground.format !== 'image' || !currentBackground.download) return
+	
+	// 创建下载提示
+	const loadingToast = createToast(tradThis('Downloading wallpaper...'), 'info')
+	
+	// 尝试在下载前增强背景数据以获取更多元数据
+	try {
+		// 异步增强数据，但不等待完成（以避免下载延迟）
+		enhanceBackgroundData(currentBackground as BackgroundImage)
+	} catch (error) {
+		console.warn('Failed to enhance background data before download:', error)
+	}
+	
+	try {
+		const baseUrl = 'https://services.bonjourr.fr/unsplash'
+		const downloadUrl = new URL(currentBackground.download)
+		const apiDownloadUrl = baseUrl + downloadUrl.pathname + downloadUrl.search
+		const downloadResponse = await fetch(apiDownloadUrl)
+		
+		if (!downloadResponse) {
+			if (document.body.contains(loadingToast)) {
+				document.body.removeChild(loadingToast)
+			}
+			createToast(tradThis('Download failed'), 'error')
+			return
+		}
+		
+		const data: { url: string } = await downloadResponse.json()
+		
+		// 优化下载质量和格式
+		const photoUrl = new URL(data.url)
+		photoUrl.searchParams.set('q', '100')
+		photoUrl.searchParams.set('fm', 'jpg')
+		photoUrl.searchParams.set('raw', 'true')
+		photoUrl.searchParams.set('fit', 'max')
+		photoUrl.searchParams.set('metadata', 'true')
+		
+		const imageResponse = await fetch(photoUrl.toString())
+		
+		if (!imageResponse.ok) {
+			if (document.body.contains(loadingToast)) {
+				document.body.removeChild(loadingToast)
+			}
+			createToast(tradThis('Download failed'), 'error')
+			return
+		}
+		
+		const blob = await imageResponse.blob()
+		
+		// 提取图片ID
+		const imageId = downloadUrl.pathname.split('/')[2]
+		// 构建详细的文件名
+		const fileName = generateDetailedFileName(currentBackground, imageId)
+		console.log('Generated detailed filename:', fileName)
+		
+		// 创建下载链接并触发下载
+		const downloadLink = document.createElement('a')
+		downloadLink.href = URL.createObjectURL(blob)
+		downloadLink.download = fileName
+		document.body.appendChild(downloadLink)
+		downloadLink.click()
+		document.body.removeChild(downloadLink)
+		
+		// 移除加载提示并显示成功提示
+		if (document.body.contains(loadingToast)) {
+			document.body.removeChild(loadingToast)
+		}
+		createToast(tradThis('Download started!'), 'success', true)
+	} catch (error) {
+		console.error('Failed to download image:', error)
+		if (document.body.contains(loadingToast)) {
+			document.body.removeChild(loadingToast)
+		}
+		createToast(tradThis('Download failed'), 'error')
 	}
 }
 
@@ -492,82 +572,7 @@ function initBackgroundClickToDownload() {
 		if (!element) return
 		
 		element.addEventListener('click', async () => {
-			// 检查当前是否有背景图片可下载
-			if (!currentBackground || currentBackground.format !== 'image' || !currentBackground.download) return
-			
-			// 创建下载提示
-			const loadingToast = createToast(tradThis('Downloading wallpaper...'), 'info')
-			
-			// 尝试在下载前增强背景数据以获取更多元数据
-			try {
-				// 异步增强数据，但不等待完成（以避免下载延迟）
-				enhanceBackgroundData(currentBackground as BackgroundImage)
-			} catch (error) {
-				console.warn('Failed to enhance background data before download:', error)
-			}
-			
-			try {
-				const baseUrl = 'https://services.bonjourr.fr/unsplash'
-				const downloadUrl = new URL(currentBackground.download)
-				const apiDownloadUrl = baseUrl + downloadUrl.pathname + downloadUrl.search
-				const downloadResponse = await fetch(apiDownloadUrl)
-				
-				if (!downloadResponse) {
-					if (document.body.contains(loadingToast)) {
-						document.body.removeChild(loadingToast)
-					}
-					createToast(tradThis('Download failed'), 'error')
-					return
-				}
-				
-				const data: { url: string } = await downloadResponse.json()
-				
-				// 优化下载质量和格式
-				const photoUrl = new URL(data.url)
-				photoUrl.searchParams.set('q', '100')
-				photoUrl.searchParams.set('fm', 'jpg')
-				photoUrl.searchParams.set('raw', 'true')
-				photoUrl.searchParams.set('fit', 'max')
-				photoUrl.searchParams.set('metadata', 'true')
-				
-				const imageResponse = await fetch(photoUrl.toString())
-				
-				if (!imageResponse.ok) {
-					if (document.body.contains(loadingToast)) {
-						document.body.removeChild(loadingToast)
-					}
-					createToast(tradThis('Download failed'), 'error')
-					return
-				}
-				
-				const blob = await imageResponse.blob()
-				
-				// 提取图片ID
-				const imageId = downloadUrl.pathname.split('/')[2]
-				// 构建详细的文件名 - 此处已检查过 currentBackground 是 'image' 类型
-				const fileName = generateDetailedFileName(currentBackground, imageId)
-				console.log('Generated detailed filename (click):', fileName)
-				
-				// 创建下载链接并触发下载
-				const downloadLink = document.createElement('a')
-				downloadLink.href = URL.createObjectURL(blob)
-				downloadLink.download = fileName
-				document.body.appendChild(downloadLink)
-				downloadLink.click()
-				document.body.removeChild(downloadLink)
-				
-				// 移除加载提示并显示成功提示
-				if (document.body.contains(loadingToast)) {
-					document.body.removeChild(loadingToast)
-				}
-				createToast(tradThis('Download started!'), 'success', true)
-			} catch (error) {
-				console.error('Failed to download image:', error)
-				if (document.body.contains(loadingToast)) {
-					document.body.removeChild(loadingToast)
-				}
-				createToast(tradThis('Download failed'), 'error')
-			}
+			await downloadCurrentBackground()
 		})
 	})
 }
