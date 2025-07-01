@@ -317,6 +317,10 @@ async function downloadCurrentBackground() {
 	// 检查当前是否有背景图片可下载
 	if (!currentBackground || currentBackground.format !== 'image' || !currentBackground.download) return
 	
+	// 获取悬浮下载按钮并设置加载状态
+	const dombutton = document.querySelector<HTMLButtonElement>('#b_interface-background-download')
+	dombutton?.classList.replace('idle', 'loading')
+	
 	// 创建下载提示
 	const loadingToast = createToast(tradThis('Downloading wallpaper...'), 'info')
 	
@@ -338,6 +342,7 @@ async function downloadCurrentBackground() {
 			if (document.body.contains(loadingToast)) {
 				document.body.removeChild(loadingToast)
 			}
+			dombutton?.classList.replace('loading', 'idle')
 			createToast(tradThis('Download failed'), 'error')
 			return
 		}
@@ -358,6 +363,7 @@ async function downloadCurrentBackground() {
 			if (document.body.contains(loadingToast)) {
 				document.body.removeChild(loadingToast)
 			}
+			dombutton?.classList.replace('loading', 'idle')
 			createToast(tradThis('Download failed'), 'error')
 			return
 		}
@@ -382,12 +388,14 @@ async function downloadCurrentBackground() {
 		if (document.body.contains(loadingToast)) {
 			document.body.removeChild(loadingToast)
 		}
+		dombutton?.classList.replace('loading', 'idle')
 		createToast(tradThis('Download started!'), 'success', true)
 	} catch (error) {
 		console.error('Failed to download image:', error)
 		if (document.body.contains(loadingToast)) {
 			document.body.removeChild(loadingToast)
 		}
+		dombutton?.classList.replace('loading', 'idle')
 		createToast(tradThis('Download failed'), 'error')
 	}
 }
