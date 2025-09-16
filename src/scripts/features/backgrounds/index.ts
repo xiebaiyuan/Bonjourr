@@ -133,6 +133,7 @@ export async function backgroundUpdate(update: BackgroundUpdate): Promise<void> 
 		createProviderSelect(data.backgrounds)
 		handleBackgroundOptions(data.backgrounds)
 		backgroundsInit(data, local)
+		return
 	}
 
 	if (isFrequency(update.freq)) {
@@ -380,11 +381,11 @@ async function backgroundCacheControl(backgrounds: Backgrounds, local: Local, ne
 	}
 
 	if (!needNew && isPaused) {
-		if (backgrounds.pausedImage) {
+		if (backgrounds.pausedImage && backgrounds.type === 'images') {
 			applyBackground(backgrounds.pausedImage)
 			return
 		}
-		if (backgrounds.pausedVideo) {
+		if (backgrounds.pausedVideo && backgrounds.videos === 'videos') {
 			applyBackground(backgrounds.pausedVideo)
 			return
 		}
@@ -486,7 +487,7 @@ async function fetchNewBackgrounds(backgrounds: Backgrounds): Promise<Record<str
 	throw new Error('Received JSON is bad')
 }
 
-function findCollectionName(backgrounds: Backgrounds): string {
+function findCollectionName(backgrounds: Backgrounds, local: Local): string {
 	switch (backgrounds.type) {
 		case 'files':
 		case 'urls':
@@ -497,7 +498,18 @@ function findCollectionName(backgrounds: Backgrounds): string {
 		default:
 	}
 
-	const collectionName = backgrounds[backgrounds.type]
+	const { frequency, type, pausedImage, pausedVideo } = backgrounds
+	const isPausedOnImage = type === 'images' && frequency === 'pause' && pausedImage
+	const isPausedOnVideo = type === 'videos' && frequency === 'pause' && pausedVideo
+
+	if (isPausedOnImage) {
+		return getCollectionNameFromMedia(pausedImage, local)
+	}
+	if (isPausedOnVideo) {
+		return getCollectionNameFromMedia(pausedVideo, local)
+	}
+
+	const collectionName = backgrounds[type]
 	const isDaylight = collectionName.includes('daylight')
 
 	if (isDaylight) {
@@ -506,6 +518,20 @@ function findCollectionName(backgrounds: Backgrounds): string {
 	}
 
 	return collectionName
+}
+
+function getCollectionNameFromMedia(media: Background, local: Local): string {
+	const collMap = new Map()
+
+	// Flatten collections to a "url => coll" map
+
+	for (const [coll, medias] of Object.entries(local.backgroundCollections)) {
+		for (const media of medias) {
+			collMap.set(media.urls.full, coll)
+		}
+	}
+
+	return collMap.get(media.urls.full)
 }
 
 function getCollection(backgrounds: Backgrounds, local: Local) {
@@ -521,7 +547,7 @@ function getCollection(backgrounds: Backgrounds, local: Local) {
 
 	// Check collection storage
 
-	const collectionName = findCollectionName(backgrounds)
+	const collectionName = findCollectionName(backgrounds, local)
 	const collection = local.backgroundCollections[collectionName] ?? []
 
 	// Check collection format
@@ -563,7 +589,7 @@ function setCollection(backgrounds: Backgrounds, local: Local) {
 	}
 
 	function fromList(list: Background[]): Local {
-		const collectionName = findCollectionName(backgrounds)
+		const collectionName = findCollectionName(backgrounds, local)
 		local.backgroundCollections[collectionName] = list
 
 		return local
@@ -589,10 +615,12 @@ export function applyBackground(media?: string | Background, res?: BackgroundSiz
 	}
 
 	const mediaWrapper = document.getElementById('background-media') as HTMLDivElement
-	const resolution = res ? res : detectBackgroundSize()
+	let resolution = res ? res : detectBackgroundSize()
 	let item: HTMLDivElement
 
 	if (media.format === 'image') {
+		// disables blur compression for animated gifs (flawed since some gifs aren't animated)
+		resolution = media.mimetype === 'image/gif' ? 'full' : resolution
 		const src = media.urls[resolution]
 		item = createImageItem(src, media)
 	} else {
@@ -683,7 +711,7 @@ function createVideoItem(src: string, media: BackgroundVideo, duration: number):
 	}
 
 	const loopVideo = async () => {
-		if (div) {
+		if (document.body.contains(div)) {
 			await prependVideo()
 			removeVideo()
 			return

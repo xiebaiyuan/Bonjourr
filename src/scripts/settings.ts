@@ -16,14 +16,14 @@ import { notes } from './features/notes.ts'
 import { clock } from './features/clock.ts'
 
 import { colorInput, fadeOut, inputThrottle, turnRefreshButton } from './shared/dom.ts'
+import { BROWSER, IS_MOBILE, PLATFORM, SYNC_DEFAULT } from './defaults.ts'
 import { toggleTraduction, tradThis, traduction } from './utils/translations.ts'
-import { IS_MOBILE, PLATFORM, SYNC_DEFAULT } from './defaults.ts'
 import { settingsNotifications } from './utils/notifications.ts'
 import { getPermissions } from './utils/permissions.ts'
 import { opacityFromHex } from './shared/generic.ts'
 import { loadCallbacks } from './utils/onsettingsload.ts'
-import { filterImports } from './imports.ts'
 import { onclickdown } from 'clickdown/mod'
+import { filterData } from './compatibility/apply.ts'
 import { stringify } from './utils/stringify.ts'
 import { debounce } from './utils/debounce.ts'
 import { langList } from './langs.ts'
@@ -161,6 +161,7 @@ function initOptionsValues(data: Sync, local: Local) {
 	setInput('i_analog-border-opacity', opacityFromHex(data.analogstyle?.border ?? '#ffff'))
 	setInput('i_analog-background-opacity', opacityFromHex(data.analogstyle?.background ?? '#fff2'))
 	setInput('i_clocksize', data.clock?.size ?? 5)
+	setInput('i_greetsize', data.greetingsize ?? 3)
 	setInput('i_timezone', data.clock?.timezone || 'auto')
 	setInput('i_geol', data.weather?.geolocation || 'approximate')
 	setInput('i_units', data.weather?.unit ?? 'metric')
@@ -206,7 +207,7 @@ function initOptionsValues(data: Sync, local: Local) {
 	paramId('i_analog-border-shade')?.classList.toggle('on', (data.analogstyle?.border ?? '#fff').includes('#000'))
 	paramId('i_analog-background-shade')?.classList.toggle(
 		'on',
-		(data.analogstyle?.background ?? '#fff').includes('#000')
+		(data.analogstyle?.background ?? '#fff').includes('#000'),
 	)
 	paramId('i_notes-shade')?.classList.toggle('on', (data.notes?.background ?? '#fff').includes('#000'))
 	paramId('i_sb-shade')?.classList.toggle('on', (data.searchbar?.background ?? '#fff').includes('#000'))
@@ -301,6 +302,23 @@ function initOptionsValues(data: Sync, local: Local) {
 			input.addEventListener('input', () => {
 				form.classList.toggle('valid', form.checkValidity())
 			})
+		}
+	}
+
+	// Change Sync name based on browser
+	const browserSyncOption = document.querySelector<HTMLElement>("#i_synctype option[value='browser']")
+
+	if (browserSyncOption) {
+		if (PLATFORM === 'firefox') {
+			browserSyncOption.textContent = 'Firefox Sync'
+		} else if (PLATFORM === 'chrome' && BROWSER === 'edge') {
+			browserSyncOption.textContent = 'Edge Sync'
+		} else if (PLATFORM === 'chrome') {
+			browserSyncOption.textContent = 'Chrome Sync'
+		} else if (PLATFORM === 'safari') {
+			browserSyncOption.textContent = 'Safari'
+		} else {
+			browserSyncOption.textContent = tradThis('Automatic')
 		}
 	}
 
@@ -478,7 +496,7 @@ function initOptionsEvents() {
 		backgroundUpdate({ textureopacity: this.value })
 	})
 
-	paramId('i_blur').addEventListener('focusin', function (this: HTMLInputElement) {
+	paramId('i_blur').addEventListener('pointerdown', function (this: HTMLInputElement) {
 		backgroundUpdate({ blurenter: true })
 	})
 
@@ -677,8 +695,9 @@ function initOptionsEvents() {
 		searchbar(undefined, { width: this.value })
 	})
 
-	paramId('i_sbrequest').addEventListener('change', function (this: HTMLInputElement) {
-		searchbar(undefined, { request: this })
+	paramId('f_sbrequest').addEventListener('submit', function (this, event: SubmitEvent) {
+		searchbar(undefined, { request: true })
+		event.preventDefault()
 	})
 
 	onclickdown(paramId('i_sbnewtab'), (_, target) => {
@@ -1286,7 +1305,7 @@ async function importSettings(imported: Partial<Sync>) {
 			getPermissions('search')
 		}
 
-		data = filterImports(data, imported)
+		data = filterData('import', data, imported)
 
 		storage.sync.clear()
 		storage.sync.set(data)
@@ -1307,14 +1326,17 @@ function resetSettings(action: 'yes' | 'no' | 'first') {
 }
 
 export function updateSettingsJson(data?: Sync) {
-	data ? updateTextArea(data) : storage.sync.get().then(updateTextArea)
+	try {
+		data ? updateTextArea(data) : storage.sync.get().then(updateTextArea)
+	} catch (err) {
+		console.warn(err)
+	}
 
 	function updateTextArea(data: Sync) {
 		const pre = document.getElementById('settings-data')
 
 		if (pre && data.about) {
 			const orderedJson = stringify(data)
-
 			data.about.browser = PLATFORM
 			pre.textContent = orderedJson
 		}

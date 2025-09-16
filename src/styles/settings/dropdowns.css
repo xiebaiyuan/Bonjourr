@@ -69,10 +69,14 @@
 }
 
 #greetings_options.shown {
-	max-height: 120px;
+	max-height: 130px;
 }
 
 #ampm_label.shown {
+	max-height: 60px;
+}
+
+#timezone_options.shown {
 	max-height: 60px;
 }
 
@@ -117,7 +121,7 @@
 }
 
 #searchbar_request.shown {
-	max-height: 60px;
+	max-height: 120px;
 }
 
 #quotes_options.shown {
